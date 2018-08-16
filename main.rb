@@ -101,12 +101,13 @@ class Obfus
         archive_name.gsub!(/^.*(\\|\/)/, '')
       end
 
-      # archive_name += '.obfus'
-
-      if File.exist? File.expand_path archive_name
-        # file already exists
-        puts "error: file #{archive_name} already exists"
-        exit 1
+      unless options.force
+        if ensure_file(archive_name)
+          # file already exists
+          puts "error: file #{archive_name} already exists"
+          puts "to overwrite the file use `--force`"
+          exit 1
+        end
       end
 
       files.each do |file|
@@ -117,39 +118,47 @@ class Obfus
         end
       end
 
+      if options.recipients.count < 1
+        # TODO throw error! no recipients specified
+        puts 'error: no recipients specified'
+        puts 'try `obfus --help`'
+        exit 1
+      end
+
       File.open archive_name, 'w' do |f|
         # add recipients `-r <recipient>`
         recipients = []
+
         options.recipients.each do |r|
           recipients << '-r'
           recipients << r
         end
 
-        if recipients.count < 1
-          # TODO throw error! no recipients specified
-          puts 'error: no recipients specified'
-          puts 'try `obfus --help`'
-          exit 1
-        end
 
         Open3.pipeline_r(
           ['tar', 'cf', '-', *files],
           ['brotli', '-cq', '9'],
           ['gpg', '-eq', *recipients]
         ) do |o, ts|
-          ts.each { |t| puts t.pid, t.status }
+          # ts.each { |t| puts t.pid, t.status }
           f.write o.read
         end
       end
     end
 
-    def decompress(archive)
+    def decompress(file)
+      # TODO: iterate over files
+      unless ensure_file(file)
+        puts "error: file #{file} does not exist"
+        exit 1
+      end
+
       Open3.pipeline_r(
-        ['gpg', '-dq', archive],
+        ['gpg', '-dq', file],
         ['brotli', '-dc'],
         ['tar', '-x']
       ) do |o, ts|
-        ts.each { |t| puts t.pid, t.status }
+        # ts.each { |t| puts t.pid, t.status }
       end
     end
 
@@ -172,6 +181,9 @@ class Obfus
         opts.on('-o', '--output NAME', 'Specify the output file name') do |name|
           options.output = name
         end
+        opts.on('-f', '--force', 'Overwrites output file if conflicts with an existing one') do |v|
+          options.force = v
+        end
         opts.on('-p', '--preset NAME', 'Use a configuration preset') do |name|
           options.preset = name
         end
@@ -188,7 +200,7 @@ class Obfus
           options.recipients += list
         end
 
-        opts.on('-v', '--[no-]verbose', 'Run verbosely') do |verbose|
+        opts.on('-v', '--verbose', 'Run verbosely') do |verbose|
           options.verbosity = :verbose
         end
         opts.on('-q', '--quiet', 'Suppress any output') do |quiet|
@@ -214,13 +226,14 @@ class Obfus
 
       if options.mode == :decompress
         # decompress archive
+        decompress(ARGV[0])
       else
         # compress
         compress(ARGV, options)
       end
 
-      puts options
-      puts ARGV
+      # puts options
+      # puts ARGV
     end # exec()
   end # class << self
 
