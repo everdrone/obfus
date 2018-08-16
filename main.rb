@@ -16,137 +16,213 @@ class Obfus
     File.join(ENV['HOME'], '.obfus{config*,rc}')
   ].freeze
 
-  def self.find_config
-    list = []
-    CONFIG_LOCATIONS.each do |pattern|
-      list += Dir.glob pattern
-    end
+  OPTIONS = {
+    :mode => :compress,
+    :preset => nil,
+    :level => 9,
+    :keep => true,
+    :recipients => [],
+    :verbosity => :normal
+  }.freeze
 
-    if list.count < 1
-      # no config file detected
-    else
-      list[0]
-    end
-  end
+  class << self
 
-  def self.parse_config(file)
-    File.open(file, 'r') do |f|
-      parsed = YAML.safe_load f.read
-    end
-  end
-
-  def self.ensure_file(name)
-    path = File.expand_path name
-    path if File.exist? path
-  end
-
-  def self.archive(files)
-    if files.count == 1
-      # check if directory, otherwise create it and proceed
-      if File.directory? files[0]
-        # proceed
+    def find_config
+      list = []
+      CONFIG_LOCATIONS.each do |pattern|
+        list += Dir.glob pattern
       end
-    elsif files.count >= 1
-      # create directory named 'Archive'
-      FileUtils.mkdir 'Archive'
-      archive_dir_path = File.expand_path 'Archive'
-      # use `mv` if --no-keep, otherwise use `cp`
-      FileUtils.mv files, archive_dir_path
-      # proceed
-    else
-      puts 'no files given'
-    end
-  end
 
-  def self.compress(archive)
-    File.open 'Archive.tbrg', 'w' do |f|
+      if list.count < 1
+        # no config file detected
+        nil
+      elsif list.count > 1
+        # TODO: print warning (multiple config files: <list...>, reading from <path>)
+        nil
+      else
+        list[0]
+      end
+    end
+
+    def parse_config(file)
+      parsed = nil
+      File.open(file, 'r') do |f|
+        parsed = YAML.safe_load f.read
+      end
+      parsed
+    end
+
+    def apply_config(options)
+      file = find_config
+      opts = OpenStruct.new OPTIONS
+      config = nil
+      unless file.nil?
+        config = parse_config(file)
+        if options.preset.nil?
+          if config['default'].nil?
+            # use native defaults
+          else
+            # use config file
+            opts = OpenStruct.new config['default']
+            opts.preset = 'default'
+          end
+        else
+          # use preset
+          opts = OpenStruct.new config[options.preset]
+        end
+      end
+
+      # override
+      options.each_pair do |k, v|
+        opts[k] = v
+      end
+
+      opts
+    end
+
+    def ensure_file(name)
+      path = File.expand_path name
+      File.exist? path
+    end
+
+    def compress(files, options)
+      archive_name = 'Archive'
+      if files.count < 1
+        puts "error: no files specified"
+        puts "try `obfus --help`"
+        exit 1
+      elsif files.count == 1
+        # call it the name of the file
+        archive_name = File.basename files[0], '.*'
+      end
+
+      unless options.output.nil?
+        archive_name = options.output.strip
+        archive_name.gsub!(/^.*(\\|\/)/, '')
+      end
+
+      # archive_name += '.obfus'
+
+      if File.exist? File.expand_path archive_name
+        # file already exists
+        puts "error: file #{archive_name} already exists"
+        exit 1
+      end
+
+      files.each do |file|
+        unless ensure_file(file)
+          # TODO: file <file> does not exist!
+          puts "error: #{file} does not exist"
+          exit 1
+        end
+      end
+
+      File.open archive_name, 'w' do |f|
+        # add recipients `-r <recipient>`
+        recipients = []
+        options.recipients.each do |r|
+          recipients << '-r'
+          recipients << r
+        end
+
+        if recipients.count < 1
+          # TODO throw error! no recipients specified
+          puts 'error: no recipients specified'
+          puts 'try `obfus --help`'
+          exit 1
+        end
+
+        Open3.pipeline_r(
+          ['tar', 'cf', '-', *files],
+          ['brotli', '-cq', '9'],
+          ['gpg', '-eq', *recipients]
+        ) do |o, ts|
+          ts.each { |t| puts t.pid, t.status }
+          f.write o.read
+        end
+      end
+    end
+
+    def decompress(archive)
       Open3.pipeline_r(
-        ['tar', 'cf', '-', archive],
-        ['brotli', '-cq', '9'],
-        ['gpg', '-erq', 'giorgiotropiano@gmail.com']
+        ['gpg', '-dq', archive],
+        ['brotli', '-dc'],
+        ['tar', '-x']
       ) do |o, ts|
-        ts.each { |t| puts t.pid }
-        f.write o.read
-      end
-    end
-  end
-
-  def self.decompress(archive)
-    Open3.pipeline_r(
-      ['gpg', '-dq', archive],
-      ['brotli', '-dc'],
-      ['tar', '-x']
-    ) do |o, ts|
-      ts.each { |t| puts t.pid }
-    end
-  end
-
-  def self.exec(args)
-    options = OpenStruct.new
-    options.recipients = []
-    options.verbosity = :normal
-
-    # load default preset
-    config_file = find_config
-    config_file = parse_config(config_file)
-
-    # add condition to check existence of "default" preset
-    default = OpenStruct.new config_file['default']
-
-    options.recipients += default.recipients
-    options.level = default.level
-
-    opt_parser = OptionParser.new do |opts|
-      opts.banner = "\nUsage: obfus [options] <file...>"
-      opts.separator ''
-      opts.separator 'Operation Modes:'
-      opts.on('-z', '--compress', 'Compress operation mode (default)') do |mode|
-        options.mode = :compress
-      end
-      opts.on('-d', '--decompress', 'Decompress operation mode') do |mode|
-        options.mode = :decompress
-      end
-
-      opts.separator ''
-      opts.separator 'Options:'
-      opts.on('-p', '--preset NAME', 'Use a configuration preset') do |name|
-        options.preset = name
-      end
-      opts.on('-l', '--level [0..9]', Integer, 'Specify compression level (defaults to 9)') do |level|
-        options.level = level
-      end
-      opts.on('-k', '--[no-]keep', 'Keep the original files') do |keep|
-        options.keep = keep
-      end
-      opts.on('-r', '--recipients x,y,z', Array, 'Add recipients list') do |list|
-        options.recipients += list
-      end
-
-      opts.on('-v', '--[no-]verbose', 'Run verbosely') do |verbose|
-        options.verbosity = :verbose
-      end
-      opts.on('-q', '--quiet', 'Suppress any output') do |quiet|
-        options.verbosity = :quiet
-      end
-
-      opts.separator ''
-      opts.separator 'Other options:'
-      opts.on_tail('--version', 'Show the version number') do
-        puts ::VERSION
-        exit
-      end
-
-      opts.on_tail('-h', '--help', 'Show this message') do
-        puts opts
-        exit
+        ts.each { |t| puts t.pid, t.status }
       end
     end
 
-    opt_parser.parse!(args)
+    def exec(args)
+      options = OpenStruct.new
 
-    puts options
-    puts ARGV
-  end # exec()
+      opt_parser = OptionParser.new do |opts|
+        opts.banner = "\nUsage: obfus [options] <file...>"
+        opts.separator ''
+        opts.separator 'Operation Modes:'
+        opts.on('-z', '--compress', 'Compress operation mode (default)') do |mode|
+          options.mode = :compress
+        end
+        opts.on('-d', '--decompress', 'Decompress operation mode') do |mode|
+          options.mode = :decompress
+        end
+
+        opts.separator ''
+        opts.separator 'Options:'
+        opts.on('-o', '--output NAME', 'Specify the output file name') do |name|
+          options.output = name
+        end
+        opts.on('-p', '--preset NAME', 'Use a configuration preset') do |name|
+          options.preset = name
+        end
+        opts.on('-l', '--level [0..9]', Integer, 'Specify compression level (defaults to 9)') do |v|
+          options.level = v
+        end
+        opts.on('-k', '--[no-]keep', 'Keep the original files') do |keep|
+          options.keep = keep
+        end
+        opts.on('-r', '--recipients x,y,z', Array, 'Add recipients list') do |list|
+          if options.recipient.nil?
+            options.recipients = []
+          end
+          options.recipients += list
+        end
+
+        opts.on('-v', '--[no-]verbose', 'Run verbosely') do |verbose|
+          options.verbosity = :verbose
+        end
+        opts.on('-q', '--quiet', 'Suppress any output') do |quiet|
+          options.verbosity = :quiet
+        end
+
+        opts.separator ''
+        opts.separator 'Other options:'
+        opts.on_tail('--version', 'Show the version number') do
+          puts ::VERSION
+          exit
+        end
+
+        opts.on_tail('-h', '--help', 'Show this message') do
+          puts opts
+          exit
+        end
+      end
+
+      opt_parser.parse!(args)
+
+      options = apply_config(options)
+
+      if options.mode == :decompress
+        # decompress archive
+      else
+        # compress
+        compress(ARGV, options)
+      end
+
+      puts options
+      puts ARGV
+    end # exec()
+  end # class << self
 
 end # class Obfus
 
