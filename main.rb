@@ -63,7 +63,7 @@ class Obfus
       Open3.pipeline_r(
         ['tar', 'cf', '-', archive],
         ['brotli', '-cq', '9'],
-        ['gpg', '-er', 'giorgiotropiano@gmail.com']
+        ['gpg', '-erq', 'giorgiotropiano@gmail.com']
       ) do |o, ts|
         ts.each { |t| puts t.pid }
         f.write o.read
@@ -72,7 +72,13 @@ class Obfus
   end
 
   def self.decompress(archive)
-    `gpg -d #{archive} | brotli -cd | tar -x`
+    Open3.pipeline_r(
+      ['gpg', '-dq', archive],
+      ['brotli', '-dc'],
+      ['tar', '-x']
+    ) do |o, ts|
+      ts.each { |t| puts t.pid }
+    end
   end
 
   def self.exec(args)
