@@ -7,8 +7,8 @@
 Obfus utilizes the top notch of both compression and encryption technology, making it easy to pack and back up sensitive data in a few keystrokes.
 
 ### Requirements
-- [Brotli]()
-- [GnuPG]()
+- [Brotli](https://github.com/google/brotli)
+- [GnuPG](https://github.com/gpg/gnupg)
 
 ## Install
 
@@ -31,7 +31,7 @@ obfus -d backup.obfus
 ## Features
 
 ### Configuration file
-Before each operation, `obfus` searches for a configuration file, usually located in `~/.config/obfus/` or in your home directory (see [configuration file location]()).
+Before each operation, `obfus` searches for a configuration file, usually located in `~/.config/obfus/` or in your home directory.
 
 The config file can be both in `json` or `yaml` format.
 
@@ -78,6 +78,10 @@ For example, to add a recipient to the archive without altering the config file 
 ```bash
 obfus -p work ~/Documents/work/ -r mommy@mail.com,daddy@mail.com
 ```
+
+#### Configuration file location
+- `~/.config/obfus/config{,.json,.yaml,.yml}`
+- `~/.obfus{rc,config}`
 
 ### Options
 
