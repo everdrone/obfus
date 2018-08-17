@@ -38,6 +38,11 @@ class Obfus
         nil
       elsif list.count > 1
         # TODO: print warning (multiple config files: <list...>, reading from <path>)
+        puts 'error: encountered multiple configuration files:'
+        list.each do |l|
+          puts File.expand_path l
+        end
+        puts "reading from: #{File.expand_path list[0]}"
         nil
       else
         list[0]
@@ -76,6 +81,10 @@ class Obfus
       options.each_pair do |k, v|
         opts[k] = v
       end
+
+      opts['keep'] = true if opts['keep'].nil?
+
+      opts['config'] = file
 
       opts
     end
@@ -125,6 +134,21 @@ class Obfus
         exit 1
       end
 
+      if options.verbosity == :verbose
+        unless options.verbosity == :quiet
+          puts 'using config file: ' + options.config
+          puts 'using preset: ' + options.preset
+          puts 'keeping original files: ' + options.keep.to_s
+          puts 'compression quality: ' + options.level.to_s
+          puts 'compressing:'
+          files.each { |f| puts '- ' + f }
+          puts
+          puts 'recipients:'
+          options.recipients.each { |r| puts '- ' + r }
+          puts
+        end
+      end
+
       File.open archive_name, 'w' do |f|
         # add recipients `-r <recipient>`
         recipients = []
@@ -137,7 +161,7 @@ class Obfus
 
         Open3.pipeline_r(
           ['tar', 'cf', '-', *files],
-          ['brotli', '-cq', '9'],
+          ['brotli', '-cq', options.level.to_s],
           ['gpg', '-eq', *recipients]
         ) do |o, ts|
           # ts.each { |t| puts t.pid, t.status }
