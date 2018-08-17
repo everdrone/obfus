@@ -8,7 +8,7 @@ require 'yaml'
 
 class Obfus
 
-  VERSION = '0.1.0'.freeze
+  VERSION = '0.1.1'.freeze
 
   CONFIG_LOCATIONS = [
     File.join(ENV['HOME'], '.config', 'obfus', '{.,}config*'),
@@ -234,7 +234,7 @@ class Obfus
         opts.separator ''
         opts.separator 'Other options:'
         opts.on_tail('--version', 'Show the version number') do
-          puts ::VERSION
+          puts "obfus@#{VERSION}"
           exit
         end
 
