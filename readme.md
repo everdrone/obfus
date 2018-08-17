@@ -1,5 +1,7 @@
 # obfus
 
+## Under development!
+
 > File compression and encryption tool
 
 Obfus utilizes the top notch of both compression and encryption technology, making it easy to pack and back up sensitive data in a few keystrokes.
