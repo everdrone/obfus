@@ -1,8 +1,7 @@
 # obfus
+> File compression and encryption tool
 
 ## Under development!
-
-> File compression and encryption tool
 
 Obfus utilizes the top notch of both compression and encryption technology, making it easy to pack and back up sensitive data in a few keystrokes.
 
@@ -20,7 +19,7 @@ brew install obfus
 
 #### Archive
 ```bash
-obfus readme.md src/*.rb -o backup.obfus
+obfus readme.md src/**/*.rb -o backup.obfus
 ```
 
 #### Unarchive
@@ -102,4 +101,4 @@ obfus -p work ~/Documents/work/ -r mommy@mail.com,daddy@mail.com
 
 > Options can be concatenated, like in many unix programs:
 >
-> `obfus files/* -vrfo output.obfus`
+> `obfus files/* -zvr some@mail.com -fko output.obfus`
