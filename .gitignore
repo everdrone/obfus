@@ -1,3 +1,7 @@
+# example folder
+example/
+
+
 # General
 .DS_Store
 .AppleDouble
@@ -25,9 +29,6 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
-
-# example folder
-example/
 
 *.gem
 *.rbc

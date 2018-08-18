@@ -3,7 +3,7 @@
 
 ## Under development!
 
-Obfus utilizes the top notch of both compression and encryption technology, making it easy to pack and back up sensitive data in a few keystrokes.
+With the top notch of both compression and encryption technology, `obfus` makes it easy to pack and back up sensitive data in a few keystrokes.
 
 ### Requirements
 - [Brotli](https://github.com/google/brotli)
