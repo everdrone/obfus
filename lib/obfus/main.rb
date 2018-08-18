@@ -217,10 +217,10 @@ module Obfus
             options.recipients += list
           end
 
-          opts.on('-v', '--verbose', 'Run verbosely')
+          opts.on('-v', '--verbose', 'Run verbosely') do
             options.verbosity = :verbose
           end
-          opts.on('-q', '--quiet', 'Suppress any output')
+          opts.on('-q', '--quiet', 'Suppress any output') do
             options.verbosity = :quiet
           end
 
