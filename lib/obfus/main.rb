@@ -6,7 +6,6 @@ require 'yaml'
 
 module Obfus
   class Main
-
     VERSION = '0.1.1'.freeze
 
     CONFIG_LOCATIONS = [
@@ -16,16 +15,15 @@ module Obfus
     ].freeze
 
     OPTIONS = {
-      :mode => :compress,
-      :preset => nil,
-      :level => 9,
-      :keep => true,
-      :recipients => [],
-      :verbosity => :normal
+      mode: :compress,
+      preset: nil,
+      level: 9,
+      keep: true,
+      recipients: [],
+      verbosity: :normal
     }.freeze
 
     class << self
-
       def find_config
         list = []
         CONFIG_LOCATIONS.each do |pattern|
@@ -96,8 +94,8 @@ module Obfus
       def compress(files, options)
         archive_name = 'Archive'
         if files.count < 1
-          puts "error: no files specified"
-          puts "try `obfus --help`"
+          puts 'error: no files specified'
+          puts 'try `obfus --help`'
           exit 1
         elsif files.count == 1
           # call it the name of the file
@@ -113,21 +111,20 @@ module Obfus
           if ensure_file(archive_name)
             # file already exists
             puts "error: file #{archive_name} already exists"
-            puts "to overwrite the file use `--force`"
+            puts 'to overwrite the file use `--force`'
             exit 1
           end
         end
 
         files.each do |file|
-          unless ensure_file(file)
-            # TODO: file <file> does not exist!
-            puts "error: #{file} does not exist"
-            exit 1
-          end
+          next if ensure_file(file)
+          # TODO: file <file> does not exist!
+          puts "error: #{file} does not exist"
+          exit 1
         end
 
         if options.recipients.count < 1
-          # TODO throw error! no recipients specified
+          # TODO: throw error! no recipients specified
           puts 'error: no recipients specified'
           puts 'try `obfus --help`'
           exit 1
@@ -157,12 +154,11 @@ module Obfus
             recipients << r
           end
 
-
           Open3.pipeline_r(
             ['tar', 'cf', '-', *files],
             ['brotli', '-cq', options.level.to_s],
             ['gpg', '-eq', *recipients]
-          ) do |o, ts|
+          ) do |o, _ts|
             # ts.each { |t| puts t.pid, t.status }
             f.write o.read
           end
@@ -192,10 +188,10 @@ module Obfus
           opts.banner = "\nUsage: obfus [options] <file...>"
           opts.separator ''
           opts.separator 'Operation Modes:'
-          opts.on('-z', '--compress', 'Compress operation mode (default)') do |mode|
+          opts.on('-z', '--compress', 'Compress operation mode (default)') do
             options.mode = :compress
           end
-          opts.on('-d', '--decompress', 'Decompress operation mode') do |mode|
+          opts.on('-d', '--decompress', 'Decompress operation mode') do
             options.mode = :decompress
           end
 
@@ -217,16 +213,14 @@ module Obfus
             options.keep = keep
           end
           opts.on('-r', '--recipients x,y,z', Array, 'Add recipients list') do |list|
-            if options.recipient.nil?
-              options.recipients = []
-            end
+            options.recipients = [] if options.recipient.nil?
             options.recipients += list
           end
 
-          opts.on('-v', '--verbose', 'Run verbosely') do |verbose|
+          opts.on('-v', '--verbose', 'Run verbosely')
             options.verbosity = :verbose
           end
-          opts.on('-q', '--quiet', 'Suppress any output') do |quiet|
+          opts.on('-q', '--quiet', 'Suppress any output')
             options.verbosity = :quiet
           end
 
@@ -259,7 +253,6 @@ module Obfus
         # puts ARGV
       end # exec()
     end # class << self
-
   end # class Main
 end # module Obfus
 
