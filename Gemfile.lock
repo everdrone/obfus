@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    obfus (0.1.1)
+    obfus (0.1.4)
 
 GEM
   remote: https://rubygems.org/

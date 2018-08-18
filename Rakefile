@@ -23,5 +23,5 @@ task :mklink => :standalone do
   prefix = ENV['PREFIX'] || ENV['prefix'] || '/usr/local'
 
   mkdir_p "#{prefix}/bin"
-  ln_s "build/obfus", "#{prefix}/bin/obfus"
+  ln_sf File.expand_path("build/obfus"), "#{prefix}/bin/obfus"
 end
