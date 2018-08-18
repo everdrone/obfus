@@ -19,7 +19,7 @@ task :standalone do
 end
 
 desc 'Install standalone script and man page.'
-task :install => :standalone do
+task :mklink => :standalone do
   prefix = ENV['PREFIX'] || ENV['prefix'] || '/usr/local'
 
   mkdir_p "#{prefix}/bin"
