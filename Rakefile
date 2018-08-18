@@ -1,9 +1,11 @@
 require 'bundler/gem_tasks'
-require 'rspec/core/rake_task'
 
-RSpec::Core::RakeTask.new(:spec)
+task :default => :test
 
-task default: :spec
+desc 'Run the tests'
+task :test do
+  sh 'rspec spec'
+end
 
 task :standalone do
   mkdir_p 'build'
