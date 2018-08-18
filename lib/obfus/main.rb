@@ -71,14 +71,17 @@ module Obfus
         end
       end
 
+      preset_recipients = opts['recipients'] || []
+
       # override
       options.each_pair do |k, v|
         opts[k] = v
       end
 
       opts['keep'] = true if opts['keep'].nil?
-
       opts['config'] = file
+      # append recipients to preset
+      opts['recipients'] += preset_recipients - opts['recipients']
 
       opts
     end
@@ -89,14 +92,14 @@ module Obfus
     end
 
     def compress(files, options)
-      archive_name = 'Archive'
+      archive_name = 'Archive.obfus'
       if files.count < 1
         puts 'error: no files specified'
         puts 'try `obfus --help`'
         exit 1
       elsif files.count == 1
         # call it the name of the file
-        archive_name = File.basename files[0], '.*'
+        archive_name = File.basename(files[0]) + '.obfus'
       end
 
       unless options.output.nil?
@@ -113,10 +116,16 @@ module Obfus
         end
       end
 
+      # collect not existing files
+      enoexist_list = []
       files.each do |file|
         next if ensure_file(file)
-        # TODO: file <file> does not exist!
-        puts "error: #{file} does not exist"
+        enoexist_list << file
+      end
+
+      # list all errors at the first execution
+      if enoexist_list.count > 0
+        enoexist_list.each { |file| puts "error: #{file} does not exist" }
         exit 1
       end
 
@@ -127,6 +136,13 @@ module Obfus
         exit 1
       end
 
+      recipients = []
+
+      options.recipients.each do |r|
+        recipients << '-r'
+        recipients << r
+      end
+
       if options.verbosity == :verbose
         unless options.verbosity == :quiet
           puts 'using config file: ' + options.config
@@ -134,32 +150,38 @@ module Obfus
           puts 'keeping original files: ' + options.keep.to_s
           puts 'compression quality: ' + options.level.to_s
           puts 'compressing:'
-          files.each { |f| puts '- ' + f }
+          files.each { |f| puts '  - ' + f }
           puts
           puts 'recipients:'
-          options.recipients.each { |r| puts '- ' + r }
+          options.recipients.each { |r| puts '  - ' + r }
           puts
         end
       end
 
-      File.open archive_name, 'w' do |f|
-        # add recipients `-r <recipient>`
-        recipients = []
+      # # store pipeline pids and statuses
+      # pipeline_status = nil
 
-        options.recipients.each do |r|
-          recipients << '-r'
-          recipients << r
-        end
-
-        Open3.pipeline_r(
-          ['tar', 'cf', '-', *files],
-          ['brotli', '-cq', options.level.to_s],
-          ['gpg', '-eq', *recipients]
-        ) do |o, _ts|
+      # TODO: delete archive if something in the pipeline fails!
+      output = nil
+      Open3.pipeline_r(
+        ['tar', 'cf', '-', *files],
+        ['brotli', '-cq', options.level.to_s],
+        ['gpg', '-eq', *recipients]
+        ) do |o, ts|
+          # pipeline_status = ts
           # ts.each { |t| puts t.pid, t.status }
-          f.write o.read
-        end
+          output = o.read
       end
+
+      if output.size == 0
+        # some error may have occurred
+        puts 'error: output data is of size 0'
+        exit 1
+      end
+
+      f = File.open archive_name, 'w'
+      f.write output
+      f.close
     end
 
     def decompress(file)
@@ -206,11 +228,14 @@ module Obfus
         opts.on('-l', '--level [0..9]', Integer, 'Specify compression level (defaults to 9)') do |v|
           options.level = v
         end
-        opts.on('-k', '--[no-]keep', 'Keep the original files') do |keep|
-          options.keep = keep
+        opts.on('-j', '--remove', 'Remove source file(s)') do
+          options.keep = false
+        end
+        opts.on('-k', '--keep', 'Keep source file(s)') do
+          options.keep = true
         end
         opts.on('-r', '--recipients x,y,z', Array, 'Add recipients list') do |list|
-          options.recipients = [] if options.recipient.nil?
+          options.recipients = [] if options.recipients.nil?
           options.recipients += list
         end
 
@@ -237,6 +262,13 @@ module Obfus
       opt_parser.parse!(args)
 
       options = apply_config(options)
+
+      # check for required options
+      if options.recipients.nil? || options.recipients.count < 1
+        puts 'error: missing recipients for gpg'
+        puts 'try `obfus --help`'
+        exit 1
+      end
 
       if options.mode == :decompress
         # decompress archive
