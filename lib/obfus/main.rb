@@ -147,7 +147,7 @@ module Obfus
         unless options.verbosity == :quiet
           puts 'using config file: ' + options.config
           puts 'using preset: ' + options.preset
-          puts 'keeping original files: ' + options.keep.to_s
+          puts 'keep original files: ' + options.keep.to_s
           puts 'compression quality: ' + options.level.to_s
           puts 'compressing:'
           files.each { |f| puts '  - ' + f }
