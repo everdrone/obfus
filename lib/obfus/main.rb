@@ -6,8 +6,6 @@ require 'yaml'
 
 module Obfus
   class Main
-    VERSION = '0.1.1'.freeze
-
     CONFIG_LOCATIONS = [
       File.join(ENV['HOME'], '.config', 'obfus', '{.,}config*'),
       File.join(ENV['HOME'], '.config', 'obfus', '.obfus{config*,rc}'),
@@ -227,7 +225,7 @@ module Obfus
           opts.separator ''
           opts.separator 'Other options:'
           opts.on_tail('--version', 'Show the version number') do
-            puts "obfus@#{VERSION}"
+            puts Obfus::VERSION
             exit
           end
 
