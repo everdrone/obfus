@@ -61,6 +61,7 @@ build-iPhoneSimulator/
 # vendor/Pods/
 
 ## Documentation cache and generated files:
+/_yardoc/
 /.yardoc/
 /_yardoc/
 /doc/
